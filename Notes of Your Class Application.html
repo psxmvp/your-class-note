@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Notes of Your Class</title>
+  
+  <!-- PWA & Mobile Web App Meta Tags -->
+  <meta name="theme-color" content="#fbbc04" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Notes of Your Class" />
+  <meta name="description" content="Manage and protect your class notes, media, and attachments with Google Sign-In and pattern lock security." />
+
+  <!-- Dynamic Web App Manifest Data URI for Chrome Installation -->
+  <link rel="manifest" href='data:application/manifest+json,{"name":"Notes of Your Class","short_name":"NotesApp","start_url":".","display":"standalone","background_color":"#f1f3f4","theme_color":"#fbbc04","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/2965/2965358.png","sizes":"192x192","type":"image/png"}]}' />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Material Symbols Outlined -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <!-- Google Fonts: Roboto -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" />
+
+  <!-- Google Identity Services (GSI) SDK for Google Sign-In -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            keepYellow: '#fbbc04',
+            keepBg: '#f1f3f4',
+            keepBgDark: '#202124',
+            keepHover: '#f5f5f5',
+            keepBorder: '#e0e0e0',
+            keepBorderDark: '#5f6368',
+            keepCardDark: '#303134'
+          },
+          fontFamily: {
+            sans: ['Roboto', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+    /* Dark mode scrollbars */
+    .dark ::-webkit-scrollbar-thumb { background: #555; }
+    .dark ::-webkit-scrollbar-thumb:hover { background: #777; }
+
+    /* Pattern Canvas Style */
+    #patternCanvas {
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .blurred-content {
+      filter: blur(6px);
+      user-select: none;
+      -webkit-user-select: none;
+      pointer-events: none;
+    }
+
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .animate-fade-in {
+      animation: fadeIn 0.2s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body class="bg-keepBg dark:bg-keepBgDark font-sans text-gray-800 dark:text-gray-100 antialiased min-h-screen flex flex-col transition-colors duration-200">
+
+  <!-- TOP APP BAR -->
+  <header class="bg-white dark:bg-gray-900 border-b border-keepBorder dark:border-keepBorderDark sticky top-0 z-30 flex items-center justify-between px-3 md:px-5 py-2.5 shadow-sm">
+    <!-- Left: Drawer Toggle & Brand -->
+    <div class="flex items-center space-x-2 md:space-x-3">
+      <button id="btnToggleSidebar" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-600 dark:text-gray-300 focus:outline-none transition active:scale-95" title="Toggle Navigation">
+        <span class="material-symbols-outlined block">menu</span>
+      </button>
+      <div class="flex items-center space-x-2">
+        <div class="w-10 h-10 bg-amber-400 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-inner">
+          <span class="material-symbols-outlined text-white text-2xl">description</span>
+        </div>
+        <div class="flex flex-col">
+          <span class="text-base sm:text-lg md:text-xl font-medium tracking-tight text-gray-800 dark:text-gray-100 leading-tight">Notes of Your Class</span>
+          <span id="headerAdminBadge" class="hidden text-[10px] font-bold text-amber-600 dark:text-amber-400 tracking-wider uppercase">Head Admin Active</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Search Bar -->
+    <div class="flex-1 max-w-xl mx-2 md:mx-6">
+      <div class="relative flex items-center bg-gray-100 dark:bg-gray-800 focus-within:bg-white dark:focus-within:bg-gray-700 focus-within:shadow-md rounded-lg transition-all border border-transparent focus-within:border-gray-200 dark:focus-within:border-gray-600">
+        <span class="material-symbols-outlined text-gray-500 dark:text-gray-400 pl-3">search</span>
+        <input 
+          type="text" 
+          id="searchInput" 
+          placeholder="Search notes or attachments..." 
+          class="w-full bg-transparent px-3 py-2 text-gray-700 dark:text-gray-100 focus:outline-none text-xs sm:text-sm md:text-base"
+        />
+        <button id="btnClearSearch" class="hidden pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+          <span class="material-symbols-outlined text-lg">close</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Right: Theme, View Toggle, Pattern & Admin Controls -->
+    <div class="flex items-center space-x-1 sm:space-x-2">
+      <!-- Dark / Light Mode Toggle -->
+      <button id="btnDarkModeToggle" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-600 dark:text-gray-300 transition active:scale-95" title="Toggle Dark/Light Mode">
+        <span id="darkModeIcon" class="material-symbols-outlined block">dark_mode</span>
+      </button>
+
+      <button id="btnViewToggle" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-600 dark:text-gray-300 transition active:scale-95" title="Toggle Grid/List View">
+        <span id="viewIcon" class="material-symbols-outlined block">grid_view</span>
+      </button>
+
+      <button id="btnLockSettingsTop" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-amber-600 dark:text-amber-400 transition active:scale-95" title="Pattern Security Lock">
+        <span class="material-symbols-outlined block">lock</span>
+      </button>
+      
+      <!-- Admin / User Button -->
+      <button id="btnAdminModalTrigger" class="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white rounded-lg text-xs md:text-sm font-semibold shadow-sm transition">
+        <span class="material-symbols-outlined text-base">account_circle</span>
+        <span id="btnAdminText" class="hidden sm:inline">Sign In / Admin</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER (SIDEBAR + CONTENT) -->
+  <div class="flex flex-1 overflow-hidden relative">
+
+    <!-- SIDEBAR NAVIGATION -->
+    <aside id="sidebar" class="w-60 bg-white dark:bg-gray-900 border-r border-keepBorder dark:border-keepBorderDark flex flex-col transition-all duration-200 z-20 shrink-0 absolute md:relative inset-y-0 left-0 -translate-x-full md:translate-x-0 shadow-lg md:shadow-none">
+      <nav class="py-3 flex-1 space-y-1">
+        <button id="navNotes" class="w-full flex items-center px-5 py-3 text-sm font-medium rounded-r-full bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 border-l-4 border-amber-500 transition">
+          <span class="material-symbols-outlined mr-3">lightbulb</span>
+          <span>Class Notes</span>
+        </button>
+        <button id="navGallery" class="w-full flex items-center px-5 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-r-full transition">
+          <span class="material-symbols-outlined mr-3">photo_library</span>
+          <span>Photo Gallery</span>
+        </button>
+        <button id="navLocked" class="w-full flex items-center px-5 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-r-full transition">
+          <span class="material-symbols-outlined mr-3">lock</span>
+          <span>Locked Notes</span>
+        </button>
+        <button id="navPattern" class="w-full flex items-center px-5 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-r-full transition">
+          <span class="material-symbols-outlined mr-3">pattern</span>
+          <span>Pattern Lock</span>
+        </button>
+        <button id="navTrash" class="w-full flex items-center px-5 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-r-full transition">
+          <span class="material-symbols-outlined mr-3">delete</span>
+          <span>Trash Bin</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Status Card -->
+      <div id="sidebarAdminCard" class="p-4 border-t border-keepBorder dark:border-keepBorderDark bg-amber-50/50 dark:bg-gray-800/50">
+        <div class="flex items-center space-x-2 text-amber-800 dark:text-amber-300 text-xs font-semibold">
+          <span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-sm">shield</span>
+          <span id="sidebarUserLabel">Guest Mode</span>
+        </div>
+        <p id="sidebarSubText" class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Sign in with Google or Admin credentials to manage notes.</p>
+      </div>
+    </aside>
+
+    <!-- MAIN FEED -->
+    <main class="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 bg-keepBg dark:bg-keepBgDark">
+
+      <!-- CREATE NOTE CARD -->
+      <div class="max-w-2xl mx-auto mb-6 md:mb-8">
+        <div id="createNoteBox" class="bg-white dark:bg-keepCardDark rounded-xl border border-keepBorder dark:border-keepBorderDark shadow-md hover:shadow-lg transition-all duration-200 overflow-hidden">
+          
+          <!-- Collapsed Input -->
+          <div id="collapsedInput" class="p-3.5 text-gray-500 dark:text-gray-400 font-medium cursor-text flex items-center justify-between">
+            <span>Take a class note...</span>
+            <div class="flex items-center space-x-2 text-gray-400">
+              <span class="material-symbols-outlined p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">image</span>
+              <span class="material-symbols-outlined p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">attach_file</span>
+              <span class="material-symbols-outlined p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">lock</span>
+            </div>
+          </div>
+
+          <!-- Expanded Form -->
+          <div id="expandedInput" class="hidden p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <input 
+                type="text" 
+                id="newTitle" 
+                placeholder="Title" 
+                class="w-full text-base font-semibold text-gray-800 dark:text-gray-100 focus:outline-none bg-transparent"
+              />
+              <button id="btnPinNew" class="text-gray-400 hover:text-amber-500 p-1 rounded-full transition" title="Pin Note">
+                <span class="material-symbols-outlined">push_pin</span>
+              </button>
+            </div>
+
+            <textarea 
+              id="newContent" 
+              rows="3" 
+              placeholder="Write your note content..." 
+              class="w-full text-sm text-gray-700 dark:text-gray-200 focus:outline-none bg-transparent resize-none"
+            ></textarea>
+
+            <!-- Attachment Previews -->
+            <div id="attachmentPreviews" class="flex flex-wrap gap-2 pt-1"></div>
+
+            <!-- Toolbar & Controls -->
+            <div class="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
+              <div class="flex items-center space-x-1">
+                
+                <!-- Color Menu -->
+                <div class="relative">
+                  <button id="btnColorPicker" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full transition" title="Background Color">
+                    <span class="material-symbols-outlined block text-lg">palette</span>
+                  </button>
+                  <div id="colorPaletteMenu" class="hidden absolute top-10 left-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl rounded-xl p-2 flex gap-1 z-30">
+                    <button class="w-6 h-6 rounded-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 color-opt" data-color="#ffffff" data-darkcolor="#303134"></button>
+                    <button class="w-6 h-6 rounded-full bg-amber-100 border border-amber-300 color-opt" data-color="#fff4b8" data-darkcolor="#5c4b18"></button>
+                    <button class="w-6 h-6 rounded-full bg-green-100 border border-green-300 color-opt" data-color="#e6f4ea" data-darkcolor="#1b4d2e"></button>
+                    <button class="w-6 h-6 rounded-full bg-teal-100 border border-teal-300 color-opt" data-color="#e8f0fe" data-darkcolor="#1c3b5e"></button>
+                    <button class="w-6 h-6 rounded-full bg-blue-100 border border-blue-300 color-opt" data-color="#cbf0f8" data-darkcolor="#1a434e"></button>
+                    <button class="w-6 h-6 rounded-full bg-purple-100 border border-purple-300 color-opt" data-color="#d7aefb" data-darkcolor="#442a5d"></button>
+                    <button class="w-6 h-6 rounded-full bg-pink-100 border border-pink-300 color-opt" data-color="#fdaffc" data-darkcolor="#542353"></button>
+                  </div>
+                </div>
+
+                <!-- Attach Image -->
+                <label class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full cursor-pointer transition" title="Add Pictures">
+                  <span class="material-symbols-outlined block text-lg">image</span>
+                  <input type="file" id="imageInput" accept="image/*" class="hidden" multiple />
+                </label>
+
+                <!-- Attach Document -->
+                <label class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full cursor-pointer transition" title="Attach Files">
+                  <span class="material-symbols-outlined block text-lg">attach_file</span>
+                  <input type="file" id="fileInput" class="hidden" multiple />
+                </label>
+
+                <!-- Lock Toggle -->
+                <button id="btnToggleLockNew" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full transition" title="Lock note with pattern">
+                  <span id="iconLockNew" class="material-symbols-outlined block text-lg">lock_open</span>
+                </button>
+
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex items-center space-x-2">
+                <button id="btnCloseCreate" class="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition">Close</button>
+                <button id="btnSaveNote" class="px-4 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-md shadow-sm transition">Save Note</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- GALLERY SECTION -->
+      <div id="galleryViewSection" class="hidden max-w-6xl mx-auto mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center">
+            <span class="material-symbols-outlined text-amber-500 mr-2">photo_library</span> Class Media & Photos
+          </h3>
+          <label class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg cursor-pointer shadow-sm transition flex items-center">
+            <span class="material-symbols-outlined text-sm mr-1">upload_file</span> Upload Photo
+            <input type="file" id="directGalleryUpload" accept="image/*" class="hidden" multiple />
+          </label>
+        </div>
+        <div id="galleryGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+      </div>
+
+      <!-- PINNED SECTION -->
+      <div id="pinnedSection" class="hidden max-w-6xl mx-auto mb-6">
+        <h3 class="text-xs font-bold tracking-wider text-gray-500 dark:text-gray-400 uppercase mb-3 px-1">Pinned Notes</h3>
+        <div id="pinnedGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+      </div>
+
+      <!-- MAIN NOTES SECTION -->
+      <div id="notesSection" class="max-w-6xl mx-auto">
+        <h3 id="othersHeading" class="text-xs font-bold tracking-wider text-gray-500 dark:text-gray-400 uppercase mb-3 px-1 hidden">Others</h3>
+        <div id="notesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+      </div>
+
+      <!-- EMPTY STATE -->
+      <div id="emptyState" class="hidden flex flex-col items-center justify-center my-16 text-gray-400 dark:text-gray-500">
+        <span class="material-symbols-outlined text-7xl mb-2 text-gray-300 dark:text-gray-600">lightbulb</span>
+        <p class="text-base font-medium">No notes available in this view</p>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- AUTHENTICATION & SETTINGS MODAL -->
+  <div id="adminModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in flex flex-col text-gray-800 dark:text-gray-100">
+      
+      <!-- Modal Header -->
+      <div class="bg-amber-500 px-6 py-4 flex items-center justify-between text-white">
+        <div class="flex items-center space-x-2">
+          <span class="material-symbols-outlined text-2xl">account_circle</span>
+          <h3 id="adminModalTitle" class="font-bold text-lg">Sign In & Authentication</h3>
+        </div>
+        <button id="btnCloseAdminModal" class="text-white/80 hover:text-white">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <!-- Unauthenticated View -->
+      <div id="authContainer" class="p-6 space-y-5">
+        
+        <!-- SECTION 1: GOOGLE SIGN IN -->
+        <div class="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-700/50">
+          <h4 class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2 flex items-center">
+            <span class="material-symbols-outlined text-amber-500 text-sm mr-1">login</span> Google Account Sign-In
+          </h4>
+          
+          <!-- Native GSI Render Target -->
+          <div id="gsiButtonContainer" class="flex justify-center my-2"></div>
+
+          <!-- Fallback or Manual Simulated Google Sign In -->
+          <div id="gsiFallbackBox" class="space-y-2">
+            <p class="text-xs text-gray-500 dark:text-gray-400">Sign in using your Gmail account name or Google OAuth ID.</p>
+            <div class="flex space-x-2">
+              <input type="email" id="gmailInput" placeholder="your.name@gmail.com" class="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <button id="btnGmailSignIn" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg shadow transition">
+                Sign In
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="relative flex py-1 items-center">
+          <div class="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+          <span class="flex-shrink mx-3 text-xs font-bold text-gray-400 uppercase">Or Admin Login</span>
+          <div class="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+        </div>
+
+        <!-- SECTION 2: ADMIN FORM -->
+        <div id="adminLoginForm" class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Username</label>
+            <input 
+              type="text" 
+              id="adminUserVal" 
+              placeholder="Enter admin username" 
+              autocomplete="username" 
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500" 
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Password</label>
+            <input 
+              type="password" 
+              id="adminPassVal" 
+              placeholder="Enter admin password" 
+              autocomplete="current-password" 
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500" 
+            />
+          </div>
+
+          <div id="loginErrorMsg" class="hidden text-xs text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 p-2.5 rounded-lg">
+            Invalid username or password. Please try again.
+          </div>
+
+          <button id="btnLoginSubmit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-98 text-white font-semibold text-sm rounded-lg shadow transition">
+            Sign In as Admin
+          </button>
+        </div>
+
+        <!-- SECTION 3: OAUTH CLIENT ID CONFIGURATION -->
+        <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
+          <details class="text-xs text-gray-500 dark:text-gray-400">
+            <summary class="cursor-pointer font-bold hover:text-amber-500 transition">Google Client ID Settings</summary>
+            <div class="mt-2 space-y-2">
+              <input type="text" id="googleClientIdInput" placeholder="Paste Google Client ID here..." class="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800 focus:outline-none" />
+              <button id="btnSaveClientId" class="w-full py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded text-xs transition">Save Client ID</button>
+            </div>
+          </details>
+        </div>
+
+      </div>
+
+      <!-- Logged In Dashboard -->
+      <div id="adminDashboard" class="hidden p-6 space-y-5">
+        
+        <!-- Status Banner -->
+        <div class="bg-amber-50 dark:bg-gray-700/60 border border-amber-300 dark:border-amber-600/50 rounded-xl p-3 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div id="dashUserAvatar" class="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center font-bold overflow-hidden">
+              <span class="material-symbols-outlined text-xl">person</span>
+            </div>
+            <div>
+              <p id="dashAdminName" class="text-sm font-bold text-gray-800 dark:text-gray-100">psxmvp</p>
+              <p id="dashAdminRole" class="text-xs text-amber-700 dark:text-amber-400 font-semibold">Head Administrator</p>
+            </div>
+          </div>
+          <button id="btnLogoutAdmin" class="px-3 py-1 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 text-xs font-semibold rounded-md transition">
+            Sign Out
+          </button>
+        </div>
+
+        <!-- Sub-Admin Management (Head Admin Only) -->
+        <div id="subAdminSection" class="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-700/40">
+          <h4 class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2 flex items-center">
+            <span class="material-symbols-outlined text-sm mr-1">group_add</span> Manage Secondary Admins
+          </h4>
+          <div class="flex space-x-2 mb-3">
+            <input type="text" id="newSubAdminUser" placeholder="New Sub-Admin Username" class="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800 focus:outline-none" />
+            <button id="btnAddSubAdmin" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition">Add</button>
+          </div>
+          <div id="subAdminList" class="space-y-1.5 max-h-32 overflow-y-auto pr-1"></div>
+        </div>
+
+        <!-- Quick Upload Action -->
+        <div class="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-white dark:bg-gray-800">
+          <h4 class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2 flex items-center">
+            <span class="material-symbols-outlined text-sm mr-1">add_a_photo</span> Quick Media Upload
+          </h4>
+          <label class="w-full py-2 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded-lg text-xs font-semibold flex items-center justify-center cursor-pointer transition">
+            <span class="material-symbols-outlined text-base mr-1">cloud_upload</span> Upload Photos to Gallery
+            <input type="file" id="adminQuickUpload" accept="image/*" class="hidden" multiple />
+          </label>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PATTERN LOCK MODAL -->
+  <div id="patternModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm flex flex-col items-center relative animate-fade-in text-gray-800 dark:text-gray-100">
+      
+      <button id="btnClosePatternModal" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+
+      <div class="text-center mb-4">
+        <div class="w-12 h-12 bg-amber-100 dark:bg-amber-900/50 rounded-full flex items-center justify-center mx-auto mb-2 text-amber-600 dark:text-amber-400">
+          <span class="material-symbols-outlined text-2xl">security</span>
+        </div>
+        <h2 id="patternTitle" class="text-lg font-bold">Pattern Lock</h2>
+        <p id="patternSubtitle" class="text-xs text-gray-500 dark:text-gray-400 mt-1">Swipe across nodes to draw pattern</p>
+      </div>
+
+      <div class="relative bg-gray-50 dark:bg-gray-700/50 rounded-xl p-2 border border-gray-200 dark:border-gray-600 select-none">
+        <canvas id="patternCanvas" width="260" height="260" class="cursor-crosshair"></canvas>
+      </div>
+
+      <div class="w-full mt-4 flex items-center justify-between">
+        <button id="btnResetPattern" class="text-xs font-medium text-amber-600 dark:text-amber-400 hover:underline">Clear Canvas</button>
+        <span id="patternMessage" class="text-xs font-semibold text-gray-600 dark:text-gray-300">Draw Pattern</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-gray-800 dark:bg-gray-700 text-white text-xs md:text-sm px-4 py-2.5 rounded-xl shadow-xl opacity-0 pointer-events-none transition-all duration-300 z-50 flex items-center space-x-2">
+    <span id="toastIcon" class="material-symbols-outlined text-amber-400 text-lg">info</span>
+    <span id="toastText">Action completed</span>
+  </div>
+
+  <!-- APPLICATION LOGIC JS -->
+  <script>
+    /* ==========================================================================
+       1. SECURE AUTHENTICATION & STORAGE PERSISTENCE
+       ========================================================================== */
+    const STORAGE_KEY_NOTES = 'notes_class_data_v4';
+    const STORAGE_KEY_PATTERN = 'notes_class_pattern_v4';
+    const STORAGE_KEY_ADMINS = 'notes_class_subadmins_v4';
+    const STORAGE_KEY_GALLERY = 'notes_class_gallery_v4';
+    const STORAGE_KEY_CLIENT_ID = 'notes_class_google_client_id_v4';
+    const STORAGE_KEY_THEME = 'notes_class_theme_v4';
+
+    // Internal Hardcoded Head Admin Credentials
+    const HEAD_ADMIN_USER = 'psxmvp';
+    const HEAD_ADMIN_PASS = 'psxmvp';
+
+    // State Variables
+    let notes = JSON.parse(localStorage.getItem(STORAGE_KEY_NOTES)) || [];
+    let savedPattern = localStorage.getItem(STORAGE_KEY_PATTERN) || null;
+    let subAdmins = JSON.parse(localStorage.getItem(STORAGE_KEY_ADMINS)) || [];
+    let galleryImages = JSON.parse(localStorage.getItem(STORAGE_KEY_GALLERY)) || [];
+    let googleClientId = localStorage.getItem(STORAGE_KEY_CLIENT_ID) || '';
+
+    // User Session
+    let currentUser = null; // null or { username: string, isHead: boolean, isGoogle: boolean, avatar: string }
+
+    // UI State
+    let isDarkMode = localStorage.getItem(STORAGE_KEY_THEME) === 'dark';
+    let isGridView = true;
+    let activeFilter = 'all';
+    let currentSearchQuery = '';
+
+    // Temp Note Form
+    let newNoteColor = '#ffffff';
+    let newNoteDarkColor = '#303134';
+    let newNoteIsPinned = false;
+    let newNoteIsLocked = false;
+    let newNoteAttachments = [];
+
+    // Lock Canvas State
+    let lockMode = 'unlock_note';
+    let pendingNoteToUnlock = null;
+
+    /* ==========================================================================
+       2. INITIALIZATION
+       ========================================================================== */
+    window.onload = function() {
+      applyTheme();
+      initPatternCanvas();
+      renderNotes();
+      setupEventListeners();
+      initGoogleAuth();
+      updateAdminUI();
+
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('#').catch(() => {});
+        });
+      }
+    };
+
+    function saveToStorage() {
+      localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(notes));
+      localStorage.setItem(STORAGE_KEY_ADMINS, JSON.stringify(subAdmins));
+      localStorage.setItem(STORAGE_KEY_GALLERY, JSON.stringify(galleryImages));
+    }
+
+    function applyTheme() {
+      const icon = document.getElementById('darkModeIcon');
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        icon.textContent = 'light_mode';
+      } else {
+        document.documentElement.classList.remove('dark');
+        icon.textContent = 'dark_mode';
+      }
+    }
+
+    /* ==========================================================================
+       3. GOOGLE IDENTITY SERVICES (GSI) INTEGRATION
+       ========================================================================== */
+    function initGoogleAuth() {
+      if (googleClientId) {
+        document.getElementById('googleClientIdInput').value = googleClientId;
+      }
+
+      if (window.google && window.google.accounts && googleClientId) {
+        try {
+          google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleGoogleCredentialResponse
+          });
+
+          google.accounts.id.renderButton(
+            document.getElementById('gsiButtonContainer'),
+            { theme: isDarkMode ? 'dark' : 'outline', size: 'large', type: 'standard' }
+          );
+        } catch (err) {
+          console.warn("GSI initialization fallback activated.", err);
+        }
+      }
+    }
+
+    function handleGoogleCredentialResponse(response) {
+      if (response.credential) {
+        try {
+          // Decode JWT payload
+          const base64Url = response.credential.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+          const payload = JSON.parse(jsonPayload);
+
+          currentUser = {
+            username: payload.name || payload.email,
+            email: payload.email,
+            isHead: false,
+            isGoogle: true,
+            avatar: payload.picture
+          };
+
+          showToast(`Welcome, ${currentUser.username}!`);
+          updateAdminUI();
+          closeAdminModal();
+        } catch (e) {
+          showToast("Failed to parse Google sign-in response.");
+        }
+      }
+    }
+
+    /* ==========================================================================
+       4. EVENT LISTENERS
+       ========================================================================== */
+    function setupEventListeners() {
+      const sidebar = document.getElementById('sidebar');
+      document.getElementById('btnToggleSidebar').addEventListener('click', () => {
+        sidebar.classList.toggle('-translate-x-full');
+      });
+
+      // Dark Mode Toggle
+      document.getElementById('btnDarkModeToggle').addEventListener('click', () => {
+        isDarkMode = !isDarkMode;
+        localStorage.setItem(STORAGE_KEY_THEME, isDarkMode ? 'dark' : 'light');
+        applyTheme();
+        if (googleClientId) initGoogleAuth();
+        renderNotes();
+      });
+
+      document.getElementById('btnViewToggle').addEventListener('click', toggleViewMode);
+      document.getElementById('btnLockSettingsTop').addEventListener('click', openPatternSetup);
+
+      // Search
+      const searchInput = document.getElementById('searchInput');
+      const btnClearSearch = document.getElementById('btnClearSearch');
+      searchInput.addEventListener('input', (e) => {
+        currentSearchQuery = e.target.value.toLowerCase().trim();
+        btnClearSearch.classList.toggle('hidden', currentSearchQuery === '');
+        renderNotes();
+      });
+      btnClearSearch.addEventListener('click', () => {
+        searchInput.value = '';
+        currentSearchQuery = '';
+        btnClearSearch.classList.add('hidden');
+        renderNotes();
+      });
+
+      // Navigation
+      document.getElementById('navNotes').addEventListener('click', () => { setNavFilter('all'); closeSidebarMobile(); });
+      document.getElementById('navGallery').addEventListener('click', () => { setNavFilter('gallery'); closeSidebarMobile(); });
+      document.getElementById('navLocked').addEventListener('click', () => { setNavFilter('locked'); closeSidebarMobile(); });
+      document.getElementById('navPattern').addEventListener('click', () => { openPatternSetup(); closeSidebarMobile(); });
+      document.getElementById('navTrash').addEventListener('click', () => { setNavFilter('trash'); closeSidebarMobile(); });
+
+      // Note Form
+      const createNoteBox = document.getElementById('createNoteBox');
+      const collapsedInput = document.getElementById('collapsedInput');
+      const expandedInput = document.getElementById('expandedInput');
+
+      collapsedInput.addEventListener('click', () => {
+        collapsedInput.classList.add('hidden');
+        expandedInput.classList.remove('hidden');
+        document.getElementById('newTitle').focus();
+      });
+
+      document.getElementById('btnCloseCreate').addEventListener('click', closeCreateForm);
+      document.getElementById('btnSaveNote').addEventListener('click', handleSaveNewNote);
+
+      // Color Menu
+      const btnColorPicker = document.getElementById('btnColorPicker');
+      const colorPaletteMenu = document.getElementById('colorPaletteMenu');
+      btnColorPicker.addEventListener('click', (e) => {
+        e.stopPropagation();
+        colorPaletteMenu.classList.toggle('hidden');
+      });
+
+      document.querySelectorAll('.color-opt').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          newNoteColor = e.target.getAttribute('data-color');
+          newNoteDarkColor = e.target.getAttribute('data-darkcolor');
+          createNoteBox.style.backgroundColor = isDarkMode ? newNoteDarkColor : newNoteColor;
+          colorPaletteMenu.classList.add('hidden');
+        });
+      });
+
+      // Pin & Lock
+      document.getElementById('btnPinNew').addEventListener('click', function() {
+        newNoteIsPinned = !newNoteIsPinned;
+        this.classList.toggle('text-amber-500', newNoteIsPinned);
+        this.classList.toggle('text-gray-400', !newNoteIsPinned);
+      });
+
+      document.getElementById('btnToggleLockNew').addEventListener('click', function() {
+        if (!savedPattern) {
+          showToast("Set up Pattern Lock first!");
+          openPatternSetup();
+          return;
+        }
+        newNoteIsLocked = !newNoteIsLocked;
+        document.getElementById('iconLockNew').textContent = newNoteIsLocked ? 'lock' : 'lock_open';
+        this.classList.toggle('text-amber-600', newNoteIsLocked);
+      });
+
+      // Files & Gallery
+      document.getElementById('imageInput').addEventListener('change', (e) => handleFileUpload(e, 'image'));
+      document.getElementById('fileInput').addEventListener('change', (e) => handleFileUpload(e, 'file'));
+      document.getElementById('directGalleryUpload').addEventListener('change', handleGalleryUpload);
+      document.getElementById('adminQuickUpload').addEventListener('change', handleGalleryUpload);
+
+      // Auth & Settings Handlers
+      document.getElementById('btnAdminModalTrigger').addEventListener('click', openAdminModal);
+      document.getElementById('btnCloseAdminModal').addEventListener('click', closeAdminModal);
+      document.getElementById('btnLoginSubmit').addEventListener('click', handleAdminLogin);
+      document.getElementById('btnGmailSignIn').addEventListener('click', handleGmailSignIn);
+      document.getElementById('btnLogoutAdmin').addEventListener('click', handleAdminLogout);
+      document.getElementById('btnAddSubAdmin').addEventListener('click', handleAddSubAdmin);
+      document.getElementById('btnSaveClientId').addEventListener('click', handleSaveClientId);
+
+      document.getElementById('adminPassVal').addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') handleAdminLogin();
+      });
+
+      // Pattern Modal
+      document.getElementById('btnClosePatternModal').addEventListener('click', closePatternModal);
+      document.getElementById('btnResetPattern').addEventListener('click', () => { resetPatternCanvas(); });
+
+      document.addEventListener('click', (e) => {
+        if (!createNoteBox.contains(e.target) && !expandedInput.classList.contains('hidden') && isFormEmpty()) {
+          closeCreateForm();
+        }
+        if (!btnColorPicker.contains(e.target)) {
+          colorPaletteMenu.classList.add('hidden');
+        }
+      });
+    }
+
+    function closeSidebarMobile() {
+      if (window.innerWidth < 768) {
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+      }
+    }
+
+    function handleSaveClientId() {
+      const val = document.getElementById('googleClientIdInput').value.trim();
+      googleClientId = val;
+      localStorage.setItem(STORAGE_KEY_CLIENT_ID, googleClientId);
+      showToast("Google Client ID saved!");
+      initGoogleAuth();
+    }
+
+    /* ==========================================================================
+       5. AUTHENTICATION LOGIC
+       ========================================================================== */
+    function openAdminModal() {
+      document.getElementById('loginErrorMsg').classList.add('hidden');
+      document.getElementById('adminModal').classList.remove('hidden');
+    }
+
+    function closeAdminModal() {
+      document.getElementById('adminModal').classList.add('hidden');
+    }
+
+    function handleGmailSignIn() {
+      const gmail = document.getElementById('gmailInput').value.trim();
+      if (!gmail) return;
+
+      currentUser = {
+        username: gmail.split('@')[0] || gmail,
+        email: gmail,
+        isHead: false,
+        isGoogle: true,
+        avatar: null
+      };
+
+      showToast(`Signed in as ${currentUser.username}`);
+      updateAdminUI();
+      closeAdminModal();
+    }
+
+    function handleAdminLogin() {
+      const userVal = document.getElementById('adminUserVal').value.trim();
+      const passVal = document.getElementById('adminPassVal').value.trim();
+      const loginErrorMsg = document.getElementById('loginErrorMsg');
+
+      loginErrorMsg.classList.add('hidden');
+
+      // Head Admin Check
+      if (userVal === HEAD_ADMIN_USER && passVal === HEAD_ADMIN_PASS) {
+        currentUser = { username: HEAD_ADMIN_USER, isHead: true, isGoogle: false, avatar: null };
+        showToast("Signed in as Head Admin");
+        updateAdminUI();
+        document.getElementById('adminUserVal').value = '';
+        document.getElementById('adminPassVal').value = '';
+        closeAdminModal();
+        return;
+      }
+
+      // Sub-Admin Check
+      const isSub = subAdmins.some(sa => sa.username === userVal && passVal === 'psxmvp');
+      if (isSub) {
+        currentUser = { username: userVal, isHead: false, isGoogle: false, avatar: null };
+        showToast(`Signed in as Sub-Admin ${userVal}`);
+        updateAdminUI();
+        document.getElementById('adminUserVal').value = '';
+        document.getElementById('adminPassVal').value = '';
+        closeAdminModal();
+        return;
+      }
+
+      loginErrorMsg.classList.remove('hidden');
+    }
+
+    function handleAdminLogout() {
+      currentUser = null;
+      updateAdminUI();
+      showToast("Signed out");
+      closeAdminModal();
+    }
+
+    function updateAdminUI() {
+      const btnAdminText = document.getElementById('btnAdminText');
+      const headerAdminBadge = document.getElementById('headerAdminBadge');
+      const authContainer = document.getElementById('authContainer');
+      const adminDashboard = document.getElementById('adminDashboard');
+      const dashAdminName = document.getElementById('dashAdminName');
+      const dashAdminRole = document.getElementById('dashAdminRole');
+      const dashUserAvatar = document.getElementById('dashUserAvatar');
+      const subAdminSection = document.getElementById('subAdminSection');
+      const sidebarUserLabel = document.getElementById('sidebarUserLabel');
+      const sidebarSubText = document.getElementById('sidebarSubText');
+
+      if (currentUser) {
+        btnAdminText.textContent = currentUser.username;
+        sidebarUserLabel.textContent = currentUser.isHead ? 'Head Admin: ' + currentUser.username : (currentUser.isGoogle ? 'User: ' + currentUser.username : 'Sub-Admin: ' + currentUser.username);
+        sidebarSubText.textContent = 'Authenticated Session Active';
+
+        authContainer.classList.add('hidden');
+        adminDashboard.classList.remove('hidden');
+        dashAdminName.textContent = currentUser.username;
+
+        if (currentUser.avatar) {
+          dashUserAvatar.innerHTML = `<img src="${currentUser.avatar}" class="w-full h-full object-cover" />`;
+        } else {
+          dashUserAvatar.innerHTML = `<span class="material-symbols-outlined text-xl">person</span>`;
+        }
+
+        if (currentUser.isHead) {
+          headerAdminBadge.classList.remove('hidden');
+          dashAdminRole.textContent = "Head Administrator";
+          subAdminSection.classList.remove('hidden');
+          renderSubAdmins();
+        } else {
+          headerAdminBadge.classList.add('hidden');
+          dashAdminRole.textContent = currentUser.isGoogle ? "Google Account User" : "Secondary Administrator";
+          subAdminSection.classList.add('hidden');
+        }
+      } else {
+        btnAdminText.textContent = 'Sign In / Admin';
+        headerAdminBadge.classList.add('hidden');
+        sidebarUserLabel.textContent = 'Guest Mode';
+        sidebarSubText.textContent = 'Sign in with Google or Admin credentials to manage notes.';
+
+        authContainer.classList.remove('hidden');
+        adminDashboard.classList.add('hidden');
+      }
+
+      renderNotes();
+    }
+
+    function handleAddSubAdmin() {
+      if (!currentUser || !currentUser.isHead) return;
+      const input = document.getElementById('newSubAdminUser');
+      const name = input.value.trim();
+
+      if (name === '') return;
+      if (name === HEAD_ADMIN_USER || subAdmins.some(sa => sa.username === name)) {
+        showToast("User already exists!");
+        return;
+      }
+
+      subAdmins.push({ username: name, createdAt: new Date().toISOString() });
+      saveToStorage();
+      renderSubAdmins();
+      input.value = '';
+      showToast(`Added Sub-Admin: ${name}`);
+    }
+
+    function removeSubAdmin(username) {
+      if (!currentUser || !currentUser.isHead) return;
+      subAdmins = subAdmins.filter(sa => sa.username !== username);
+      saveToStorage();
+      renderSubAdmins();
+      showToast(`Removed Sub-Admin ${username}`);
+    }
+
+    function renderSubAdmins() {
+      const list = document.getElementById('subAdminList');
+      list.innerHTML = '';
+
+      if (subAdmins.length === 0) {
+        list.innerHTML = '<p class="text-xs text-gray-400 italic">No secondary admins added.</p>';
+        return;
+      }
+
+      subAdmins.forEach(sa => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between bg-white dark:bg-gray-800 px-2.5 py-1.5 rounded border border-gray-200 dark:border-gray-700 text-xs';
+        row.innerHTML = `
+          <span class="font-medium text-gray-700 dark:text-gray-300">${sa.username}</span>
+          <button onclick="removeSubAdmin('${sa.username}')" class="text-red-500 hover:text-red-700">
+            <span class="material-symbols-outlined text-sm block">person_remove</span>
+          </button>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    /* ==========================================================================
+       6. NOTE CREATION & FILE HANDLING
+       ========================================================================== */
+    function isFormEmpty() {
+      const title = document.getElementById('newTitle').value.trim();
+      const content = document.getElementById('newContent').value.trim();
+      return title === '' && content === '' && newNoteAttachments.length === 0;
+    }
+
+    function handleFileUpload(e, defaultType) {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          const isImg = file.type.startsWith('image/');
+          newNoteAttachments.push({
+            id: 'att_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            name: file.name,
+            type: isImg ? 'image' : 'file',
+            data: evt.target.result
+          });
+          renderAttachmentPreviews();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function handleGalleryUpload(e) {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          galleryImages.unshift({
+            id: 'gal_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            name: file.name,
+            data: evt.target.result,
+            uploadedBy: currentUser ? currentUser.username : 'Student'
+          });
+          saveToStorage();
+          if (activeFilter === 'gallery') renderNotes();
+          showToast("Photo added to Class Gallery!");
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderAttachmentPreviews() {
+      const container = document.getElementById('attachmentPreviews');
+      container.innerHTML = '';
+      newNoteAttachments.forEach((att, index) => {
+        const badge = document.createElement('div');
+        badge.className = 'relative flex items-center bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs text-gray-700 dark:text-gray-200 max-w-[150px] truncate';
+        
+        badge.innerHTML = `<span class="material-symbols-outlined text-sm mr-1">${att.type === 'image' ? 'image' : 'attach_file'}</span><span class="truncate">${att.name}</span>`;
+
+        const btnRemove = document.createElement('button');
+        btnRemove.className = 'ml-1 text-gray-400 hover:text-red-500';
+        btnRemove.innerHTML = '<span class="material-symbols-outlined text-xs">close</span>';
+        btnRemove.onclick = (e) => {
+          e.stopPropagation();
+          newNoteAttachments.splice(index, 1);
+          renderAttachmentPreviews();
+        };
+
+        badge.appendChild(btnRemove);
+        container.appendChild(badge);
+      });
+    }
+
+    function handleSaveNewNote() {
+      const title = document.getElementById('newTitle').value.trim();
+      const content = document.getElementById('newContent').value.trim();
+
+      if (title === '' && content === '' && newNoteAttachments.length === 0) {
+        showToast("Cannot save empty note");
+        return;
+      }
+
+      const note = {
+        id: 'note_' + Date.now(),
+        title,
+        content,
+        color: newNoteColor,
+        darkColor: newNoteDarkColor,
+        pinned: newNoteIsPinned,
+        locked: newNoteIsLocked,
+        isUnlocked: false,
+        trashed: false,
+        createdBy: currentUser ? currentUser.username : 'Student',
+        attachments: [...newNoteAttachments],
+        updatedAt: new Date().toISOString()
+      };
+
+      notes.unshift(note);
+      saveToStorage();
+      renderNotes();
+      closeCreateForm();
+      showToast("Note saved!");
+    }
+
+    function closeCreateForm() {
+      document.getElementById('newTitle').value = '';
+      document.getElementById('newContent').value = '';
+      newNoteAttachments = [];
+      newNoteColor = '#ffffff';
+      newNoteDarkColor = '#303134';
+      newNoteIsPinned = false;
+      newNoteIsLocked = false;
+      
+      const createNoteBox = document.getElementById('createNoteBox');
+      createNoteBox.style.backgroundColor = isDarkMode ? '#303134' : '#ffffff';
+
+      document.getElementById('attachmentPreviews').innerHTML = '';
+      document.getElementById('collapsedInput').classList.remove('hidden');
+      document.getElementById('expandedInput').classList.add('hidden');
+      document.getElementById('iconLockNew').textContent = 'lock_open';
+    }
+
+    /* ==========================================================================
+       7. RENDER NOTES & GALLERY
+       ========================================================================== */
+    function renderNotes() {
+      const pinnedGrid = document.getElementById('pinnedGrid');
+      const notesGrid = document.getElementById('notesGrid');
+      const galleryGrid = document.getElementById('galleryGrid');
+      const pinnedSection = document.getElementById('pinnedSection');
+      const notesSection = document.getElementById('notesSection');
+      const galleryViewSection = document.getElementById('galleryViewSection');
+      const othersHeading = document.getElementById('othersHeading');
+      const emptyState = document.getElementById('emptyState');
+
+      pinnedGrid.innerHTML = '';
+      notesGrid.innerHTML = '';
+      galleryGrid.innerHTML = '';
+
+      if (activeFilter === 'gallery') {
+        pinnedSection.classList.add('hidden');
+        notesSection.classList.add('hidden');
+        galleryViewSection.classList.remove('hidden');
+
+        if (galleryImages.length === 0) {
+          emptyState.classList.remove('hidden');
+        } else {
+          emptyState.classList.add('hidden');
+          galleryImages.forEach(img => {
+            const card = document.createElement('div');
+            card.className = 'group relative rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition';
+            card.innerHTML = `
+              <img src="${img.data}" class="w-full h-36 object-cover" />
+              <div class="p-2 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800">
+                <span class="truncate">${img.name}</span>
+                ${currentUser ? `<button onclick="deleteGalleryImage('${img.id}')" class="text-red-500 hover:text-red-700 p-0.5"><span class="material-symbols-outlined text-sm">delete</span></button>` : ''}
+              </div>
+            `;
+            galleryGrid.appendChild(card);
+          });
+        }
+        return;
+      }
+
+      galleryViewSection.classList.add('hidden');
+      notesSection.classList.remove('hidden');
+
+      let filtered = notes.filter(n => {
+        if (activeFilter === 'trash') return n.trashed;
+        if (n.trashed) return false;
+        if (activeFilter === 'locked') return n.locked;
+        return true;
+      });
+
+      if (currentSearchQuery !== '') {
+        filtered = filtered.filter(n => 
+          n.title.toLowerCase().includes(currentSearchQuery) || 
+          n.content.toLowerCase().includes(currentSearchQuery) ||
+          n.attachments.some(a => a.name.toLowerCase().includes(currentSearchQuery))
+        );
+      }
+
+      const pinnedNotes = filtered.filter(n => n.pinned);
+      const otherNotes = filtered.filter(n => !n.pinned);
+
+      if (filtered.length === 0) {
+        emptyState.classList.remove('hidden');
+        pinnedSection.classList.add('hidden');
+        othersHeading.classList.add('hidden');
+        return;
+      } else {
+        emptyState.classList.add('hidden');
+      }
+
+      if (pinnedNotes.length > 0 && activeFilter !== 'trash') {
+        pinnedSection.classList.remove('hidden');
+        pinnedNotes.forEach(n => pinnedGrid.appendChild(createNoteCard(n)));
+      } else {
+        pinnedSection.classList.add('hidden');
+      }
+
+      if (pinnedNotes.length > 0 && otherNotes.length > 0 && activeFilter !== 'trash') {
+        othersHeading.classList.remove('hidden');
+      } else {
+        othersHeading.classList.add('hidden');
+      }
+
+      otherNotes.forEach(n => notesGrid.appendChild(createNoteCard(n)));
+    }
+
+    function deleteGalleryImage(id) {
+      galleryImages = galleryImages.filter(g => g.id !== id);
+      saveToStorage();
+      renderNotes();
+      showToast("Photo deleted");
+    }
+
+    function createNoteCard(note) {
+      const card = document.createElement('div');
+      card.className = `group relative rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden`;
+      
+      const bgColor = isDarkMode ? (note.darkColor || '#303134') : (note.color || '#ffffff');
+      card.style.backgroundColor = bgColor;
+
+      const isContentHidden = note.locked && !note.isUnlocked;
+
+      // Header
+      const headerDiv = document.createElement('div');
+      headerDiv.className = 'flex items-start justify-between mb-2';
+
+      const titleEl = document.createElement('h4');
+      titleEl.className = 'font-semibold text-gray-800 dark:text-gray-100 text-base leading-snug break-words pr-2';
+      titleEl.textContent = note.title || (isContentHidden ? 'Protected Note' : 'Untitled Note');
+
+      const headerIcons = document.createElement('div');
+      headerIcons.className = 'flex items-center space-x-1';
+
+      if (note.locked) {
+        const lockBadge = document.createElement('span');
+        lockBadge.className = 'material-symbols-outlined text-amber-600 dark:text-amber-400 text-lg';
+        lockBadge.textContent = note.isUnlocked ? 'lock_open' : 'lock';
+        headerIcons.appendChild(lockBadge);
+      }
+
+      if (!note.trashed) {
+        const pinBtn = document.createElement('button');
+        pinBtn.className = `p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 ${note.pinned ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 opacity-0 group-hover:opacity-100'} transition`;
+        pinBtn.innerHTML = '<span class="material-symbols-outlined text-lg">push_pin</span>';
+        pinBtn.onclick = (e) => {
+          e.stopPropagation();
+          note.pinned = !note.pinned;
+          saveToStorage();
+          renderNotes();
+        };
+        headerIcons.appendChild(pinBtn);
+      }
+
+      headerDiv.appendChild(titleEl);
+      headerDiv.appendChild(headerIcons);
+      card.appendChild(headerDiv);
+
+      // Body Content
+      const bodyDiv = document.createElement('div');
+      bodyDiv.className = `flex-1 text-sm text-gray-600 dark:text-gray-300 mb-3 whitespace-pre-wrap break-words ${isContentHidden ? 'blurred-content select-none' : ''}`;
+
+      if (isContentHidden) {
+        bodyDiv.textContent = 'This note is protected with Pattern Lock. Touch or click to unlock.';
+      } else {
+        bodyDiv.textContent = note.content;
+      }
+      card.appendChild(bodyDiv);
+
+      // Attachments
+      if (note.attachments && note.attachments.length > 0) {
+        const attContainer = document.createElement('div');
+        attContainer.className = `flex flex-wrap gap-1 mb-3 ${isContentHidden ? 'blurred-content' : ''}`;
+
+        note.attachments.forEach(att => {
+          if (att.type === 'image') {
+            const img = document.createElement('img');
+            img.src = att.data;
+            img.className = 'w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700 mb-1';
+            attContainer.appendChild(img);
+          } else {
+            const link = document.createElement('a');
+            link.href = att.data;
+            link.download = att.name;
+            link.className = 'flex items-center bg-white/70 dark:bg-gray-800/70 hover:bg-white dark:hover:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-xs text-gray-700 dark:text-gray-200 transition truncate max-w-full';
+            link.innerHTML = `<span class="material-symbols-outlined text-sm mr-1">download</span><span class="truncate">${att.name}</span>`;
+            attContainer.appendChild(link);
+          }
+        });
+        card.appendChild(attContainer);
+      }
+
+      // Lock Overlay
+      if (isContentHidden) {
+        const lockOverlay = document.createElement('div');
+        lockOverlay.className = 'absolute inset-0 bg-white/40 dark:bg-black/50 flex flex-col items-center justify-center cursor-pointer transition hover:bg-white/20 dark:hover:bg-black/30';
+        lockOverlay.innerHTML = `
+          <div class="bg-amber-500 text-white p-2.5 rounded-full shadow-lg mb-1">
+            <span class="material-symbols-outlined text-2xl block">lock</span>
+          </div>
+          <span class="text-xs font-bold text-gray-800 dark:text-gray-100 bg-white/90 dark:bg-gray-800/90 px-2.5 py-1 rounded-full shadow">Draw Pattern to Unlock</span>
+        `;
+        lockOverlay.onclick = () => promptPatternUnlock(note);
+        card.appendChild(lockOverlay);
+      }
+
+      // Actions Footer
+      const footerDiv = document.createElement('div');
+      footerDiv.className = 'flex items-center justify-between pt-2 border-t border-black/5 dark:border-white/10 sm:opacity-0 group-hover:opacity-100 transition';
+
+      if (!note.trashed) {
+        const actionGroup = document.createElement('div');
+        actionGroup.className = 'flex items-center space-x-1';
+
+        const lockBtn = document.createElement('button');
+        lockBtn.className = 'p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-full text-gray-600 dark:text-gray-300';
+        lockBtn.title = note.locked ? 'Unlock Note' : 'Lock Note';
+        lockBtn.innerHTML = `<span class="material-symbols-outlined text-base">${note.locked ? 'lock_open' : 'lock'}</span>`;
+        lockBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (!savedPattern) {
+            showToast("Setup pattern lock first!");
+            openPatternSetup();
+            return;
+          }
+          note.locked = !note.locked;
+          saveToStorage();
+          renderNotes();
+          showToast(note.locked ? "Note protected with pattern lock" : "Lock removed from note");
+        };
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-full text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400';
+        delBtn.title = 'Move to Trash';
+        delBtn.innerHTML = '<span class="material-symbols-outlined text-base">delete</span>';
+        delBtn.onclick = (e) => {
+          e.stopPropagation();
+          note.trashed = true;
+          saveToStorage();
+          renderNotes();
+          showToast("Moved to trash");
+        };
+
+        actionGroup.appendChild(lockBtn);
+        actionGroup.appendChild(delBtn);
+        footerDiv.appendChild(actionGroup);
+      } else {
+        const restoreBtn = document.createElement('button');
+        restoreBtn.className = 'text-xs font-medium text-amber-600 dark:text-amber-400 hover:underline flex items-center';
+        restoreBtn.innerHTML = '<span class="material-symbols-outlined text-sm mr-1">restore</span>Restore';
+        restoreBtn.onclick = (e) => {
+          e.stopPropagation();
+          note.trashed = false;
+          saveToStorage();
+          renderNotes();
+          showToast("Note restored");
+        };
+
+        const deletePermanentBtn = document.createElement('button');
+        deletePermanentBtn.className = 'text-xs font-medium text-red-600 dark:text-red-400 hover:underline flex items-center';
+        deletePermanentBtn.innerHTML = '<span class="material-symbols-outlined text-sm mr-1">delete_forever</span>Delete';
+        deletePermanentBtn.onclick = (e) => {
+          e.stopPropagation();
+          notes = notes.filter(n => n.id !== note.id);
+          saveToStorage();
+          renderNotes();
+          showToast("Deleted permanently");
+        };
+
+        footerDiv.appendChild(restoreBtn);
+        footerDiv.appendChild(deletePermanentBtn);
+      }
+
+      card.appendChild(footerDiv);
+      return card;
+    }
+
+    /* ==========================================================================
+       8. PATTERN LOCK CANVAS
+       ========================================================================== */
+    let canvas, ctx;
+    let nodes = [];
+    let selectedNodes = [];
+    let isDrawing = false;
+    let currentMousePos = { x: 0, y: 0 };
+
+    function initPatternCanvas() {
+      canvas = document.getElementById('patternCanvas');
+      ctx = canvas.getContext('2d');
+
+      nodes = [];
+      const padding = 45;
+      const spacing = (canvas.width - padding * 2) / 2;
+
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 3; col++) {
+          nodes.push({
+            id: row * 3 + col,
+            x: padding + col * spacing,
+            y: padding + row * spacing,
+            radius: 14
+          });
+        }
+      }
+
+      canvas.addEventListener('pointerdown', handlePointerDown);
+      canvas.addEventListener('pointermove', handlePointerMove);
+      canvas.addEventListener('pointerup', handlePointerUp);
+      canvas.addEventListener('pointercancel', handlePointerUp);
+
+      drawPattern();
+    }
+
+    function drawPattern() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (selectedNodes.length > 0) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#fbbc04';
+        ctx.lineWidth = 4;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+
+        const startNode = nodes[selectedNodes[0]];
+        ctx.moveTo(startNode.x, startNode.y);
+
+        for (let i = 1; i < selectedNodes.length; i++) {
+          const node = nodes[selectedNodes[i]];
+          ctx.lineTo(node.x, node.y);
+        }
+
+        if (isDrawing) {
+          ctx.lineTo(currentMousePos.x, currentMousePos.y);
+        }
+        ctx.stroke();
+      }
+
+      nodes.forEach((node) => {
+        const isSelected = selectedNodes.includes(node.id);
+
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+        ctx.fillStyle = isSelected ? '#fbbc04' : (isDarkMode ? '#555' : '#e0e0e0');
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.radius / 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = isSelected ? '#ffffff' : (isDarkMode ? '#aaa' : '#9e9e9e');
+        ctx.fill();
+      });
+    }
+
+    function getCanvasPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+
+    function handlePointerDown(e) {
+      e.preventDefault();
+      isDrawing = true;
+      selectedNodes = [];
+      currentMousePos = getCanvasPos(e);
+      checkNodeHit(currentMousePos);
+      drawPattern();
+    }
+
+    function handlePointerMove(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      currentMousePos = getCanvasPos(e);
+      checkNodeHit(currentMousePos);
+      drawPattern();
+    }
+
+    function handlePointerUp(e) {
+      if (!isDrawing) return;
+      isDrawing = false;
+      drawPattern();
+      verifyPatternSubmission();
+    }
+
+    function checkNodeHit(pos) {
+      nodes.forEach(node => {
+        const dist = Math.hypot(node.x - pos.x, node.y - pos.y);
+        if (dist < node.radius * 1.5 && !selectedNodes.includes(node.id)) {
+          selectedNodes.push(node.id);
+        }
+      });
+    }
+
+    function resetPatternCanvas() {
+      selectedNodes = [];
+      drawPattern();
+    }
+
+    function promptPatternUnlock(note) {
+      lockMode = 'unlock_note';
+      pendingNoteToUnlock = note;
+
+      document.getElementById('patternTitle').textContent = "Unlock Note";
+      document.getElementById('patternSubtitle').textContent = "Draw pattern to reveal contents";
+      document.getElementById('patternMessage').textContent = "Draw pattern";
+
+      resetPatternCanvas();
+      document.getElementById('patternModal').classList.remove('hidden');
+    }
+
+    function openPatternSetup() {
+      lockMode = savedPattern ? 'verify_reset' : 'set_pattern';
+
+      if (savedPattern) {
+        document.getElementById('patternTitle').textContent = "Reset Pattern Lock";
+        document.getElementById('patternSubtitle').textContent = "Draw existing pattern to configure new one";
+      } else {
+        document.getElementById('patternTitle').textContent = "Set Pattern Lock";
+        document.getElementById('patternSubtitle').textContent = "Draw a new pattern (at least 3 dots)";
+      }
+
+      document.getElementById('patternMessage').textContent = "Draw pattern";
+      resetPatternCanvas();
+      document.getElementById('patternModal').classList.remove('hidden');
+    }
+
+    function closePatternModal() {
+      document.getElementById('patternModal').classList.add('hidden');
+      pendingNoteToUnlock = null;
+      resetPatternCanvas();
+    }
+
+    function verifyPatternSubmission() {
+      if (selectedNodes.length < 3) {
+        document.getElementById('patternMessage').textContent = "Connect at least 3 points";
+        setTimeout(resetPatternCanvas, 800);
+        return;
+      }
+
+      const drawnPatternStr = JSON.stringify(selectedNodes);
+
+      if (lockMode === 'unlock_note') {
+        if (drawnPatternStr === savedPattern) {
+          if (pendingNoteToUnlock) {
+            pendingNoteToUnlock.isUnlocked = true;
+            renderNotes();
+          }
+          showToast("Note unlocked!");
+          closePatternModal();
+        } else {
+          document.getElementById('patternMessage').textContent = "Incorrect pattern";
+          setTimeout(resetPatternCanvas, 1000);
+        }
+      } 
+      else if (lockMode === 'verify_reset') {
+        if (drawnPatternStr === savedPattern) {
+          lockMode = 'set_pattern';
+          document.getElementById('patternTitle').textContent = "Set New Pattern";
+          document.getElementById('patternSubtitle').textContent = "Draw your new security pattern";
+          document.getElementById('patternMessage').textContent = "Draw new pattern";
+          showToast("Pattern verified. Draw new pattern.");
+          resetPatternCanvas();
+        } else {
+          document.getElementById('patternMessage').textContent = "Incorrect pattern";
+          setTimeout(resetPatternCanvas, 1000);
+        }
+      }
+      else if (lockMode === 'set_pattern') {
+        savedPattern = drawnPatternStr;
+        localStorage.setItem(STORAGE_KEY_PATTERN, savedPattern);
+        showToast("Pattern lock updated!");
+        closePatternModal();
+      }
+    }
+
+    /* ==========================================================================
+       9. UI UTILITIES
+       ========================================================================== */
+    function toggleViewMode() {
+      isGridView = !isGridView;
+      const viewIcon = document.getElementById('viewIcon');
+      const pinnedGrid = document.getElementById('pinnedGrid');
+      const notesGrid = document.getElementById('notesGrid');
+
+      if (isGridView) {
+        viewIcon.textContent = 'grid_view';
+        pinnedGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
+        notesGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
+      } else {
+        viewIcon.textContent = 'view_agenda';
+        pinnedGrid.className = 'flex flex-col space-y-3 max-w-2xl mx-auto';
+        notesGrid.className = 'flex flex-col space-y-3 max-w-2xl mx-auto';
+      }
+    }
+
+    function setNavFilter(filter) {
+      activeFilter = filter;
+
+      const navs = [
+        { id: 'navNotes', filterName: 'all' },
+        { id: 'navGallery', filterName: 'gallery' },
+        { id: 'navLocked', filterName: 'locked' },
+        { id: 'navTrash', filterName: 'trash' }
+      ];
+
+      navs.forEach(item => {
+        const btn = document.getElementById(item.id);
+        if (item.filterName === filter) {
+          btn.className = 'w-full flex items-center px-5 py-3 text-sm font-medium rounded-r-full bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 border-l-4 border-amber-500 transition';
+        } else {
+          btn.className = 'w-full flex items-center px-5 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-r-full transition';
+        }
+      });
+
+      renderNotes();
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      const toastText = document.getElementById('toastText');
+      toastText.textContent = message;
+
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      toast.classList.add('opacity-100');
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'pointer-events-none');
+        toast.classList.remove('opacity-100');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
